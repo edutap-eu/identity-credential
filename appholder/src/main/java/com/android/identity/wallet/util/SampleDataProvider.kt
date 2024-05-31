@@ -15,6 +15,7 @@ object SampleDataProvider {
     const val MICOV_VTR_NAMESPACE = "org.micov.vtr.1"
     const val EUPID_NAMESPACE = EUPersonalID.EUPID_NAMESPACE
 
+
     fun getSampleValue(
         context: Context,
         namespace: String,

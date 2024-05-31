@@ -10,6 +10,7 @@ import com.android.identity.document.DocumentStore
 import com.android.identity.documenttype.DocumentTypeRepository
 import com.android.identity.documenttype.knowntypes.DrivingLicense
 import com.android.identity.documenttype.knowntypes.EUPersonalID
+import com.android.identity.documenttype.knowntypes.EduTAPeduID
 import com.android.identity.documenttype.knowntypes.VaccinationDocument
 import com.android.identity.documenttype.knowntypes.VehicleRegistration
 import com.android.identity.mdoc.credential.MdocCredential
@@ -59,6 +60,8 @@ class HolderApp: Application() {
         documentTypeRepositoryInstance.addDocumentType(VehicleRegistration.getDocumentType())
         documentTypeRepositoryInstance.addDocumentType(VaccinationDocument.getDocumentType())
         documentTypeRepositoryInstance.addDocumentType(EUPersonalID.getDocumentType())
+        documentTypeRepositoryInstance.addDocumentType(EduTAPeduID.getDocumentType())
+
         trustManagerInstance = trustManager
         certificateStorageEngineInstance = certificateStorageEngine
         certificateStorageEngineInstance.enumerate().forEach {

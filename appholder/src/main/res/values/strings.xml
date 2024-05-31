@@ -156,6 +156,7 @@
     <string name="document_type_mvr">mVR</string>
     <string name="document_type_micov">micov</string>
     <string name="document_type_eu_pid">euPid</string>
+    <string name="document_type_edutap_edu_id">EduTAPeduID</string>
 
     <string name="document_color_green">Green</string>
     <string name="document_color_yellow">Yellow</string>

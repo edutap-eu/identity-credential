@@ -1,6 +1,7 @@
 package com.android.mdl.appreader.document
 
 import com.android.identity.documenttype.knowntypes.EUPersonalID
+import com.android.identity.documenttype.knowntypes.EduTAPeduID
 import java.io.Serializable
 
 
@@ -16,6 +17,8 @@ data class RequestDocument(
         const val MICOV_DOCTYPE = "org.micov.1"
         const val MICOV_VTR_NAMESPACE = "org.micov.vtr.1"
         const val MICOV_ATT_NAMESPACE = "org.micov.attestation.1"
+
         const val EU_PID_DOCTYPE = EUPersonalID.EUPID_DOCTYPE
+        const val EDUTAP_EDUID_DOCTYPE = EduTAPeduID.EDUTAP_DOCTYPE
     }
 }

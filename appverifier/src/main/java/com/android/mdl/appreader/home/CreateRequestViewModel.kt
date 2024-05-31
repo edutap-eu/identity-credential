@@ -157,6 +157,15 @@ class CreateRequestViewModel : ViewModel() {
                 )
             )
         }
+
+        if (uiState.euTAPeduId.isSelected) {
+            requestDocumentList.addRequestDocument(
+                getRequestDocument(
+                    RequestDocument.EDUTAP_EDUID_DOCTYPE,
+                    intentToRetain
+                )
+            )
+        }
         if (uiState.mdlWithLinkage.isSelected) {
             requestDocumentList.addRequestDocument(
                 getRequestDocument(

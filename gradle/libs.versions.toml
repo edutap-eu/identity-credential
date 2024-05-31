@@ -5,7 +5,7 @@
     min-sdk = "26"
     dokka = "1.9.20"
     kotlin = "1.9.23"
-    gradle-plugin = "8.4.0"
+    gradle-plugin = "8.4.1"
     core-ktx = "1.13.1"
     activity-compose = "1.9.0"
     appcompat = "1.6.1"

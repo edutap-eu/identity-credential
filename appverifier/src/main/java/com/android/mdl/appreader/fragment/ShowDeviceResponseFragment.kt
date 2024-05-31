@@ -50,8 +50,6 @@ class ShowDeviceResponseFragment : Fragment() {
         private const val MICOV_DOCTYPE = "org.micov.1"
         private const val MDL_NAMESPACE = "org.iso.18013.5.1"
         private const val MICOV_ATT_NAMESPACE = "org.micov.attestation.1"
-        private const val EU_PID_DOCTYPE = EUPersonalID.EUPID_DOCTYPE
-        private const val EU_PID_NAMESPACE = EUPersonalID.EUPID_NAMESPACE
     }
 
     private val args: ShowDeviceResponseFragmentArgs by navArgs()

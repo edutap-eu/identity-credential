@@ -22,7 +22,7 @@
     <string name="mvr_full">Request mVR"</string>
     <string name="micov_full">Request micov"</string>
     <string name="eu_pid_full">Request EU Personal ID"</string>
-
+    <string name="edutap_full">Request eduTAP edu ID"</string>
     <!-- mDL strings -->
     <string name="family_name">Family Name</string>
     <string name="given_name">Given Names</string>
