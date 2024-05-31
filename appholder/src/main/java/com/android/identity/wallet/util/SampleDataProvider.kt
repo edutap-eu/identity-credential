@@ -5,10 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.android.identity.documenttype.DocumentAttributeType
 import com.android.identity.documenttype.knowntypes.EUPersonalID
-<<<<<<< HEAD
-=======
+
 import com.android.identity.documenttype.knowntypes.EduTAPeduID
->>>>>>> d02a3218 (saple data for edutap)
+
 import com.android.identity.wallet.R
 
 object SampleDataProvider {
@@ -18,11 +17,8 @@ object SampleDataProvider {
     const val MICOV_ATT_NAMESPACE = "org.micov.attestation.1"
     const val MICOV_VTR_NAMESPACE = "org.micov.vtr.1"
     const val EUPID_NAMESPACE = EUPersonalID.EUPID_NAMESPACE
-<<<<<<< HEAD
-
-=======
     const val EDUTAP_NAMESPACE = EduTAPeduID.EDUTAP_NAMESPACE
->>>>>>> d02a3218 (saple data for edutap)
+
 
     fun getSampleValue(
         context: Context,
