@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.android.identity.documenttype.DocumentAttributeType
+import com.android.identity.documenttype.knowntypes.EUPersonalID
 import com.android.identity.wallet.R
 
 object SampleDataProvider {
@@ -12,7 +13,7 @@ object SampleDataProvider {
     const val MVR_NAMESPACE = "nl.rdw.mekb.1"
     const val MICOV_ATT_NAMESPACE = "org.micov.attestation.1"
     const val MICOV_VTR_NAMESPACE = "org.micov.vtr.1"
-    const val EUPID_NAMESPACE = "eu.europa.ec.eudi.pid.1"
+    const val EUPID_NAMESPACE = EUPersonalID.EUPID_NAMESPACE
 
     fun getSampleValue(
         context: Context,
@@ -207,6 +208,7 @@ object SampleDataProvider {
                 "given_name_birth" -> "Erika"
                 "given_name_birth_national_characters" -> "Ерика"
                 "birth_place" -> "Place of birth"
+                "birth_country" -> "UT"
                 "resident_address" -> "Resident address"
                 "resident_city" -> "Resident City"
                 "resident_postal_code" -> "Resident postal code"

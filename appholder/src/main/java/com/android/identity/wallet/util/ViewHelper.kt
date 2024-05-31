@@ -26,7 +26,7 @@ data class Field(
     }
 
     fun getValueString(): String {
-        return value as String
+        return if(value !=null) value as String else "--"
     }
 
     fun getValueBoolean(): Boolean {

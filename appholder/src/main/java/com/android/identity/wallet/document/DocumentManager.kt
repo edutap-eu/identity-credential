@@ -235,12 +235,15 @@ class DocumentManager private constructor(private val context: Context) {
                 }
 
                 else -> {
-
+                    try{
                     builder.putEntryString(
                         field.namespace!!,
                         field.name,
                         field.getValueString()
                     )
+                    } catch (ex: Exception){
+                        throw IllegalArgumentException("field ${field.name} is null")
+                    }
                 }
             }
         }
