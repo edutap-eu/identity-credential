@@ -15,9 +15,8 @@ java {
 }
 
 dependencies {
-    implementation project(':cbor-processor')
-
-    ksp project(':cbor-processor')
+    implementation project(':processor')
+    ksp project(':processor')
 
     implementation libs.kotlin.reflect
     implementation libs.bouncy.castle.bcprov

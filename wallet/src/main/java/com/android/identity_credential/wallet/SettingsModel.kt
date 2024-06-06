@@ -5,13 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
-import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.lifecycle.MutableLiveData
 import com.android.identity.android.util.AndroidLogPrinter
 import com.android.identity.util.Logger
-import com.android.identity_credential.mrtd.mrtdSetLogger
+import com.android.identity.mrtd.mrtdSetLogger
 import java.io.File
 
 class SettingsModel(
@@ -21,6 +20,7 @@ class SettingsModel(
     // Settings that are visible in the Settings screen
     val developerModeEnabled = MutableLiveData(false)
     val loggingEnabled = MutableLiveData(false)
+    val walletServerUrl = MutableLiveData<String>(DEFAULT_WALLET_SERVER_URL)
 
     // Non visible in the Settings screen
     val focusedCardId = MutableLiveData("")
@@ -33,6 +33,8 @@ class SettingsModel(
         
         private const val PREFERENCE_DEVELOPER_MODE_ENABLED = "developer_mode_enabled"
         private const val PREFERENCE_LOGGING_ENABLED = "logging_enabled"
+        private const val PREFERENCE_WALLET_SERVER_URL = "wallet_server_url"
+
         private const val PREFERENCE_FOCUSED_CARD_ID = "focused_card_id"
         private const val PREFERENCE_HIDE_MISSING_PROXIMITY_PERMISSIONS_WARNING =
             "hide_missing_proximity_permissions_warning"
@@ -40,6 +42,8 @@ class SettingsModel(
         // Logging
         private const val LOG_FOLDER_NAME = "log"
         private const val LOG_FILE_NAME = "log.txt"
+
+        private const val DEFAULT_WALLET_SERVER_URL = "dev:"
     }
 
     private val logDir = File(walletApplication.cacheDir, LOG_FOLDER_NAME)
@@ -57,6 +61,10 @@ class SettingsModel(
             sharedPreferences.edit { putString(PREFERENCE_FOCUSED_CARD_ID, value) }
         }
 
+        walletServerUrl.value = sharedPreferences.getString(PREFERENCE_WALLET_SERVER_URL, DEFAULT_WALLET_SERVER_URL)
+        walletServerUrl.observeForever { value ->
+            sharedPreferences.edit { putString(PREFERENCE_WALLET_SERVER_URL, value) }
+        }
 
         Logger.setLogPrinter(AndroidLogPrinter())
         this.loggingEnabled.value = sharedPreferences.getBoolean(PREFERENCE_LOGGING_ENABLED, false)

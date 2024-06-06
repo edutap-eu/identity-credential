@@ -122,11 +122,16 @@ fun DocumentInfoScreen(
                         showRequestUpdateDialog = false
 
                         coroutineScope.launch {
-                            documentModel.developerModeRequestUpdate(
-                                documentInfo,
-                                remoteDeletionCheckedState.value,
-                                notifyApplicationCheckedState.value
-                            )
+                            try {
+                                documentModel.developerModeRequestUpdate(
+                                    documentInfo,
+                                    remoteDeletionCheckedState.value,
+                                    notifyApplicationCheckedState.value
+                                )
+                            } catch (e: Throwable) {
+                                showErrorMessage = "Unexpected exception: $e"
+                            }
+
                         }
                     }) {
                     Text(stringResource(R.string.document_info_screen_request_update_confirm_button))
@@ -191,7 +196,7 @@ fun DocumentInfoScreen(
                                 documentModel.refreshCard(documentInfo)
                             } catch (e: ScreenLockRequiredException) {
                                 showErrorMessage = context.getString(R.string.document_info_screen_refresh_error_missing_screenlock)
-                            } catch (e: Exception) {
+                            } catch (e: Throwable) {
                                 showErrorMessage = "Unexpected exception while refreshing: $e"
                             }
                         }

@@ -18,16 +18,16 @@ import com.android.identity.documenttype.DocumentTypeRepository
 import com.android.identity.issuance.DocumentCondition
 import com.android.identity.issuance.DocumentExtensions.documentConfiguration
 import com.android.identity.issuance.DocumentExtensions.documentIdentifier
-import com.android.identity.issuance.DocumentExtensions.isDeleted
 import com.android.identity.issuance.DocumentExtensions.issuingAuthorityIdentifier
 import com.android.identity.issuance.DocumentExtensions.numDocumentConfigurationsDownloaded
 import com.android.identity.issuance.DocumentExtensions.refreshState
 import com.android.identity.issuance.DocumentExtensions.state
 import com.android.identity.issuance.CredentialFormat
 import com.android.identity.issuance.CredentialRequest
+import com.android.identity.issuance.DocumentExtensions.issuingAuthorityConfiguration
 import com.android.identity.issuance.IssuingAuthority
 import com.android.identity.issuance.IssuingAuthorityConfiguration
-import com.android.identity.issuance.IssuingAuthorityRepository
+import com.android.identity.issuance.remote.WalletServerProvider
 import com.android.identity.mdoc.mso.MobileSecurityObjectParser
 import com.android.identity.mdoc.mso.StaticAuthDataParser
 import com.android.identity.sdjwt.SdJwtVerifiableCredential
@@ -40,7 +40,6 @@ import com.android.identity.securearea.software.SoftwareCreateKeySettings
 import com.android.identity.securearea.software.SoftwareKeyInfo
 import com.android.identity.securearea.software.SoftwareSecureArea
 import com.android.identity.util.Logger
-import com.android.identity.util.Timestamp
 import com.android.identity_credential.wallet.credman.CredmanRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,16 +63,14 @@ class DocumentModel(
     private val context: Context,
     private val settingsModel: SettingsModel,
     private val documentStore: DocumentStore,
-    private val issuingAuthorityRepository: IssuingAuthorityRepository,
     private val secureAreaRepository: SecureAreaRepository,
     private val documentTypeRepository: DocumentTypeRepository,
+    private val walletServerProvider: WalletServerProvider,
     private val walletApplication: WalletApplication
 ) {
     companion object {
         private const val TAG = "DocumentModel"
     }
-
-    val issuerDisplayData = mutableStateListOf<IssuerDisplayData>()
 
     val documentInfos = mutableStateListOf<DocumentInfo>()
 
@@ -112,10 +109,6 @@ class DocumentModel(
             return
         }
         syncDocumentWithIssuer(document)
-        if (document.isDeleted) {
-            Logger.i(TAG, "Document ${document.name} was deleted, removing")
-            documentStore.deleteDocument(document.name)
-        }
     }
 
     suspend fun developerModeRequestUpdate(
@@ -128,12 +121,9 @@ class DocumentModel(
             Logger.w(TAG, "No document with id ${documentInfo.documentId}")
             return
         }
-        issuingAuthorityRepository.waitUntilReady()
-        val issuerRecord =
-            issuingAuthorityRepository.lookupIssuingAuthority(document.issuingAuthorityIdentifier)
-                ?: throw IllegalArgumentException("No issuer with id ${document.issuingAuthorityIdentifier}")
-
-        issuerRecord.issuingAuthority.developerModeRequestUpdate(
+        val walletServer = walletServerProvider.getWalletServer()
+        val issuer = walletServer.getIssuingAuthority(document.issuingAuthorityIdentifier)
+        issuer.developerModeRequestUpdate(
             document.documentIdentifier,
             requestRemoteDeletion,
             notifyApplicationOfUpdate
@@ -164,19 +154,11 @@ class DocumentModel(
             options
         )
 
-        val issuer =
-            issuingAuthorityRepository.lookupIssuingAuthority(document.issuingAuthorityIdentifier)
-        if (issuer == null) {
-            Logger.w(
-                TAG, "Unknown issuer ${document.issuingAuthorityIdentifier} for " +
-                        "document ${document.name}"
-            )
-            return null
-        }
+        val issuerConfiguration = document.issuingAuthorityConfiguration
         val issuerLogo = BitmapFactory.decodeByteArray(
-            issuer.configuration.issuingAuthorityLogo,
+            issuerConfiguration.issuingAuthorityLogo,
             0,
-            issuer.configuration.issuingAuthorityLogo.size,
+            issuerConfiguration.issuingAuthorityLogo.size,
             options
         )
 
@@ -199,6 +181,7 @@ class DocumentModel(
 
         var attentionNeeded = false
         val statusString = when (document.state.condition) {
+            DocumentCondition.NO_SUCH_DOCUMENT -> getStr(R.string.document_model_status_no_such_document)
             DocumentCondition.PROOFING_REQUIRED -> getStr(R.string.document_model_status_proofing_required)
             DocumentCondition.PROOFING_PROCESSING -> getStr(R.string.document_model_status_proofing_processing)
             DocumentCondition.PROOFING_FAILED -> getStr(R.string.document_model_status_proofing_failed)
@@ -227,8 +210,8 @@ class DocumentModel(
             attentionNeeded = attentionNeeded,
             requireUserAuthenticationToViewDocument = documentConfiguration.requireUserAuthenticationToViewDocument,
             name = documentConfiguration.displayName,
-            issuerName = issuer.configuration.issuingAuthorityName,
-            issuerDocumentDescription = issuer.configuration.description,
+            issuerName = issuerConfiguration.issuingAuthorityName,
+            issuerDocumentDescription = issuerConfiguration.issuingAuthorityDescription,
             typeName = documentConfiguration.typeDisplayName,
             issuerLogo = issuerLogo,
             documentArtwork = documentBitmap,
@@ -332,12 +315,10 @@ class DocumentModel(
             format = CredentialFormat.MDOC_MSO,
             description = "ISO/IEC 18013-5:2021 mdoc MSO",
             usageCount = mdocCredential.usageCount,
-            signedAt = Instant.fromEpochMilliseconds(mso.signed.toEpochMilli()),
-            validFrom = Instant.fromEpochMilliseconds(mso.validFrom.toEpochMilli()),
-            validUntil = Instant.fromEpochMilliseconds(mso.validUntil.toEpochMilli()),
-            expectedUpdate = mso.expectedUpdate?.let {
-                Instant.fromEpochMilliseconds(it.toEpochMilli())
-            },
+            signedAt = mso.signed,
+            validFrom = mso.validFrom,
+            validUntil = mso.validUntil,
+            expectedUpdate = mso.expectedUpdate,
             replacementPending = mdocCredential.replacement != null,
             details = kvPairs
         )
@@ -396,26 +377,6 @@ class DocumentModel(
         createCardForDocument(document)?.let { documentInfos[cardIndex] = it }
     }
 
-    private fun addIssuer(configuration: IssuingAuthorityConfiguration) {
-        issuerDisplayData.add(createIssuerDisplayData(configuration))
-    }
-
-    private fun createIssuerDisplayData(configuration: IssuingAuthorityConfiguration): IssuerDisplayData {
-        val options = BitmapFactory.Options()
-        options.inMutable = true
-        val issuerLogoBitmap = BitmapFactory.decodeByteArray(
-            configuration.issuingAuthorityLogo,
-            0,
-            configuration.issuingAuthorityLogo.size,
-            options
-        )
-
-        return IssuerDisplayData(
-            configuration = configuration,
-            issuerLogo = issuerLogoBitmap,
-        )
-    }
-
     private fun updateCredman() {
         CredmanRegistry.registerCredentials(context, documentStore, documentTypeRepository)
     }
@@ -434,7 +395,6 @@ class DocumentModel(
             // model (addDocument, removeDocument, updateDocument) doesn't happen at
             // the same time...
             //
-            issuingAuthorityRepository.waitUntilReady()
             runBlocking {
                 documentStore.eventFlow
                     .onEach { (eventType, document) ->
@@ -474,30 +434,24 @@ class DocumentModel(
             }
         }
 
-        // This processes events from `issuingAuthorityRepository` which is a stream of events
+        // This processes events from `walletServerProvider` which is a stream of events
         // for when an issuer notifies that one of their documents has an update.
         //
         // For every event, we  initiate a sequence of calls into the issuer to get the latest.
         //
         CoroutineScope(Dispatchers.IO).launch {
-            issuingAuthorityRepository.waitUntilReady()
-            issuingAuthorityRepository.eventFlow.collect { (issuingAuthority, documentId) ->
+            walletServerProvider.eventFlow.collect { (issuingAuthorityId, documentId) ->
                 // Find the local [Document] instance, if any
                 for (id in documentStore.listDocuments()) {
                     val document = documentStore.lookupDocument(id)
-                    if (document?.issuingAuthorityIdentifier == issuingAuthority.configuration.identifier &&
+                    if (document?.issuingAuthorityIdentifier == issuingAuthorityId &&
                         document.documentIdentifier == documentId
                     ) {
-                        Logger.i(TAG, "Handling DocumentStateChanged on $documentId")
+                        Logger.i(TAG, "Handling issuer update on $documentId")
                         try {
                             syncDocumentWithIssuer(document)
-                            if (document.isDeleted) {
-                                Logger.i(TAG, "Document ${document.name} was deleted, removing")
-                                documentStore.deleteDocument(document.name)
-                            }
                         } catch (e: Throwable) {
                             Logger.e(TAG, "Error when syncing with issuer", e)
-
                             // For example, this can happen if the user removed the LSKF and the
                             // issuer wants auth-bound keys when using Android Keystore. In this
                             // case [ScreenLockRequiredException] is thrown... it can also happen
@@ -526,16 +480,8 @@ class DocumentModel(
             }
         }
 
-        // This is a hack to wait until all IssuerAuthority objects are created
-        runBlocking {
-            issuingAuthorityRepository.waitUntilReady()
-        }
-
         // Initial data population and export to Credman
         //
-        for (issuer in issuingAuthorityRepository.getIssuingAuthorities()) {
-            addIssuer(issuer.configuration)
-        }
         for (documentId in documentStore.listDocuments()) {
             documentStore.lookupDocument(documentId)?.let {
                 addDocument(it)
@@ -582,23 +528,34 @@ class DocumentModel(
     private suspend fun syncDocumentWithIssuer(
         document: Document
     ) {
-        Logger.i(TAG, "syncDocumentWithIssuer ${document.name} ${document.documentIdentifier}")
+        Logger.i(TAG, "syncDocumentWithIssuer: Refreshing ${document.name}")
 
-        val iaId = document.issuingAuthorityIdentifier
-        val issuer = issuingAuthorityRepository.lookupIssuingAuthority(iaId)?.issuingAuthority
-            ?: throw IllegalArgumentException("No issuer with id $iaId")
+        val walletServer = walletServerProvider.getWalletServer()
+        val issuer = walletServer.getIssuingAuthority(document.issuingAuthorityIdentifier)
 
-        // OK, let's see if configuration is available
-        if (!document.refreshState(issuingAuthorityRepository)) {
+        // Download latest issuer configuration.
+        document.issuingAuthorityConfiguration = issuer.getConfiguration()
+
+        // OK, let's see what's new...
+        document.refreshState(walletServerProvider)
+
+        // It's possible the document was remote deleted...
+        if (document.state.condition == DocumentCondition.NO_SUCH_DOCUMENT) {
+            Logger.i(TAG, "syncDocumentWithIssuer: ${document.name} was deleted")
             walletApplication.postNotificationForDocument(
                 document,
                 walletApplication.applicationContext.getString(
                     R.string.notifications_document_deleted_by_issuer
                 )
             )
+            documentStore.deleteDocument(document.name)
+            return
         }
 
+        // It's possible a new configuration is available...
         if (document.state.condition == DocumentCondition.CONFIGURATION_AVAILABLE) {
+            Logger.i(TAG, "syncDocumentWithIssuer: ${document.name} has a new configuration")
+
             // New configuration (= PII) is available, nuke all existing credentials
             //
             document.certifiedCredentials.forEach { it.delete() }
@@ -625,13 +582,11 @@ class DocumentModel(
             }
             document.numDocumentConfigurationsDownloaded += 1
 
-            if (!document.refreshState(issuingAuthorityRepository)) {
-                Logger.e(TAG, "Error refreshing state for document ${document.name}")
-                return
-            }
+            document.refreshState(walletServerProvider)
         }
 
-        // Request new credentials if needed
+        // If the document is in the READY state, we can request credentials. See if we need
+        // to do that.
         if (document.state.condition == DocumentCondition.READY) {
             val docConf = document.documentConfiguration
 
@@ -672,13 +627,10 @@ class DocumentModel(
             }
         }
 
+        // It's possible the request credentials have already been minted..
+        document.refreshState(walletServerProvider)
 
-        if (!document.refreshState(issuingAuthorityRepository)) {
-            Logger.e(TAG, "Error refreshing state for document ${document.name} (after requesting" +
-                    " credentials)")
-            return
-        }
-
+        // ... if so, download them.
         var numCredentialsRefreshed = 0
         if (document.state.numAvailableCredentials > 0) {
             for (credentialData in issuer.getCredentials(document.documentIdentifier)) {
@@ -692,15 +644,12 @@ class DocumentModel(
                 }
                 pendingCredential.certify(
                     credentialData.data,
-                    Timestamp.ofEpochMilli(credentialData.validFrom.toEpochMilliseconds()),
-                    Timestamp.ofEpochMilli(credentialData.validUntil.toEpochMilliseconds())
+                    credentialData.validFrom,
+                    credentialData.validUntil
                 )
                 numCredentialsRefreshed += 1
             }
-            if (!document.refreshState(issuingAuthorityRepository)) {
-                Logger.e(TAG, "Error refreshing state for document ${document.name} (after " +
-                        "credential download)")
-            }
+            document.refreshState(walletServerProvider)
         }
     }
 
@@ -720,7 +669,7 @@ class DocumentModel(
         val numCreds = 3
         val minValidTimeMillis = 30 * 24 * 3600L
 
-        val now = Timestamp.now()
+        val now = Clock.System.now()
         // First do a dry-run to see how many pending credentials will be created
         val numPendingCredentialsToCreate = DocumentUtil.managedCredentialHelper(
             document,

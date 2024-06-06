@@ -95,9 +95,30 @@
     <string name="settings_screen_log_to_file_clear_button">Clear log</string>
     <string name="settings_screen_log_to_file_share_button">Share log</string>
     <string name="settings_screen_log_to_file_chooser_title">Share Log</string>
+    <string name="settings_screen_wallet_server_title">Wallet Server</string>
+    <string name="settings_screen_wallet_server_built_in">Built-in Wallet Server (dev:)</string>
+    <string name="settings_screen_set_wallet_server_url_dialog_title">Wallet Server</string>
+    <string name="settings_screen_set_wallet_server_url_dialog_message">
+        This is a developer-focused setting for specifying the URL of the Wallet Server instance
+        the application should connect to.\n\nSome popular options are included in the links below.
+    </string>
+    <string name="settings_screen_set_wallet_server_url_dialog_confirm_button">Set</string>
+    <string name="settings_screen_set_wallet_server_url_dialog_dismiss_button">Cancel</string>
+    <string name="settings_screen_set_wallet_server_url_label">URL</string>
+    <string name="settings_screen_set_wallet_server_url_link_built_in">Built-in Wallet Server</string>
+    <string name="settings_screen_set_wallet_server_url_link_emulator">Emulator with Wallet Server running on developer host</string>
+    <string name="settings_screen_set_wallet_server_url_tunneled">Wallet Server tunneled to device with \'adb reverse tcp:8080 tcp:8080\'</string>
+    <string name="settings_screen_confirm_set_wallet_server_url_dialog_title">Confirm setting Wallet Server URL</string>
+    <string name="settings_screen_confirm_set_wallet_server_url_dialog_message">
+        All existing documents will be deleted if you change the Wallet Server URL.
+    </string>
+    <string name="settings_screen_confirm_set_wallet_server_url_dialog_confirm">Confirm</string>
+    <string name="settings_screen_confirm_set_wallet_server_url_dialog_dismiss">Cancel</string>
 
     <!-- Add to Wallet screen -->
     <string name="add_screen_title">Add to Wallet</string>
+    <string name="add_screen_loading">Loading</string>
+    <string name="add_screen_loading_error">Error loading issuers</string>
     <string name="add_screen_select_issuer">Select the kind of document to add</string>
 
     <!-- DocumentInfoScreen -->
@@ -149,6 +170,7 @@
     <string name="credential_info_screen_no_credentials">No Credentials Available</string>
 
     <!-- DocumentModel -->
+    <string name="document_model_status_no_such_document">No such document</string>
     <string name="document_model_status_proofing_required">User proofing required</string>
     <string name="document_model_status_proofing_processing">Application is processing</string>
     <string name="document_model_status_proofing_failed">Application not approved</string>
@@ -245,6 +267,20 @@
     </string>
     <string name="utopia_mdl_issuing_authority_pending_document_title">Utopia mDL (pending)</string>
     <string name="utopia_mdl_issuing_authority_document_title">%1$s\'s mDL</string>
+
+    <string name="utopia_local_issuing_authority_tos"><![CDATA[
+        <img src=\'logo.png\' style=\'height: 150px; display: block; margin: auto\'
+           alt=\'State of Utopia Department of Motor Vehicles\'/>
+        <h2>Provisioning a Mobile Driving License (mDL)</h2>
+        <p>In the following screens, information will be collected for provisioning of a mDL.</p>
+        <p>The mDL can either contain hard-coded data for fictional person or
+        data derived from the chip in an ePassport or eID document.</p>
+        <p>In this version of the Issuing Authority the mDL is generated and signed on-device.
+        In other versions the collected evidence are conveyed securely and privately to an issuance
+        server for evaluation and signing of the mDL.</p>
+        <p>The created mDL will be bound to this device.</p>
+    ]]>
+    </string>
 
     <!-- SelfSignedEuPidIssuingAuthority -->
     <string name="utopia_eu_pid_issuing_authority_description">Utopia Personal Information Document</string>

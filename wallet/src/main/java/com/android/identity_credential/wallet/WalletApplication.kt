@@ -34,9 +34,8 @@ import com.android.identity.documenttype.knowntypes.DrivingLicense
 import com.android.identity.documenttype.knowntypes.EUPersonalID
 import com.android.identity.crypto.Certificate
 import com.android.identity.crypto.javaX509Certificate
-import com.android.identity.flow.handler.FlowHandlerRemote
 import com.android.identity.issuance.DocumentExtensions.documentConfiguration
-import com.android.identity.issuance.IssuingAuthorityRepository
+import com.android.identity.issuance.WalletApplicationCapabilities
 import com.android.identity.sdjwt.credential.SdJwtVcCredential
 import com.android.identity.issuance.remote.WalletServerProvider
 import com.android.identity.securearea.SecureAreaRepository
@@ -45,6 +44,10 @@ import com.android.identity.trustmanagement.TrustManager
 import com.android.identity.trustmanagement.TrustPoint
 import com.android.identity.util.Logger
 import com.android.identity_credential.wallet.util.toByteArray
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.io.File
 import java.security.Security
@@ -90,7 +93,6 @@ class WalletApplication : Application() {
 
     // late instantiations
     lateinit var documentTypeRepository: DocumentTypeRepository
-    lateinit var issuingAuthorityRepository: IssuingAuthorityRepository
     lateinit var secureAreaRepository: SecureAreaRepository
     lateinit var credentialFactory: CredentialFactory
     lateinit var documentStore: DocumentStore
@@ -98,6 +100,7 @@ class WalletApplication : Application() {
     lateinit var documentModel: DocumentModel
     lateinit var androidKeystoreSecureArea: AndroidKeystoreSecureArea
     lateinit var softwareSecureArea: SoftwareSecureArea
+    lateinit var walletServerProvider: WalletServerProvider
 
     override fun onCreate() {
         super.onCreate()
@@ -139,54 +142,14 @@ class WalletApplication : Application() {
         // init documentStore
         documentStore = DocumentStore(storageEngine, secureAreaRepository, credentialFactory)
 
-        val walletServerProvider = WalletServerProvider(this,
+        // init Wallet Server
+        walletServerProvider = WalletServerProvider(
+            this,
             androidKeystoreSecureArea,
-            // There are multiple options for the default here. For now we use
-            // http://10.0.2.2:8080/wallet-server which makes it work out of the
-            // box when using the emulator.
-            //
-            // The developer may adjust it to suit their environment. In the future the
-            // default will point to a publicly available instance of the wallet server.
-            //
-            // Another option is to use http://127.0.0.1:8080/wallet-server and then
-            // run 'adb reverse tcp:8080 tcp:8080' on the host to proxy through adb.
-            //
-            // Alternatively use "dev:" to connect to the server code running in-app.
-            //
-            "http://10.0.2.2:8080/wallet-server"
+            settingsModel,
+            storageEngine,
+            { getWalletApplicationInformation() }
         )
-
-        // init IssuingAuthorityRepository
-        issuingAuthorityRepository = IssuingAuthorityRepository() {
-            addIssuingAuthority(SelfSignedMdlIssuingAuthority.getConfiguration(
-                this@WalletApplication)
-            ) { emitOnStateChanged ->
-                SelfSignedMdlIssuingAuthority(
-                    this@WalletApplication,
-                    storageEngine,
-                    emitOnStateChanged)
-            }
-            addIssuingAuthority(SelfSignedEuPidIssuingAuthority.getConfiguration(
-                this@WalletApplication)
-            ) { emitOnStateChanged ->
-                SelfSignedEuPidIssuingAuthority(
-                    this@WalletApplication,
-                    storageEngine,
-                    emitOnStateChanged)
-            }
-
-            try {
-                val walletServer = walletServerProvider.getWalletServer()
-                for (config in walletServer.getIssuingAuthorityConfigurations()) {
-                    val issuingAuthority = walletServer.getIssuingAuthority(config.identifier)
-                    addIssuingAuthority(config) {
-                        issuingAuthority
-                    }
-                }
-            } catch (err: FlowHandlerRemote.ConnectionException) {
-                Logger.e(TAG, "Could not connect to the wallet server", err)
-            }
-        }
 
         // init TrustManager
         trustManager.addTrustPoint(
@@ -199,9 +162,9 @@ class WalletApplication : Application() {
             applicationContext,
             settingsModel,
             documentStore,
-            issuingAuthorityRepository,
             secureAreaRepository,
             documentTypeRepository,
+            walletServerProvider,
             this
         )
 
@@ -230,6 +193,25 @@ class WalletApplication : Application() {
                 ExistingPeriodicWorkPolicy.KEEP,
                 workRequest
             )
+
+        // If we previously connected to a Wallet Server we know whether it supports
+        // [WalletServer.waitForNotification]. If it does, make sure we make a connection
+        // at application startup so we can start getting notifications.
+        try {
+            if (walletServerProvider.walletServerCapabilities.waitForNotificationSupported) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        walletServerProvider.getWalletServer()
+                    } catch (e: Throwable) {
+                        Logger.e(TAG, "Error doing initial call to Wallet Server", e)
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+            // Do nothing, this happens if we have never successfully connected to a wallet server
+            // in which case the getter for [WalletServerProvider.walletServerCapabilities]
+            // throws.
+        }
     }
 
     class SyncCredentialWithIssuerWorker(
@@ -342,5 +324,17 @@ class WalletApplication : Application() {
 
         val notificationId = document.name.hashCode()
         NotificationManagerCompat.from(applicationContext).notify(notificationId, builder.build())
+    }
+
+    private suspend fun getWalletApplicationInformation(): WalletApplicationCapabilities {
+        val now = Clock.System.now()
+
+        val keystoreCapabilities = AndroidKeystoreSecureArea.Capabilities(applicationContext)
+
+        return WalletApplicationCapabilities(
+            generatedAt = now,
+            androidKeystoreAttestKeyAvailable = keystoreCapabilities.attestKeySupported,
+            androidKeystoreStrongBoxAvailable = keystoreCapabilities.strongBoxSupported
+        )
     }
 }

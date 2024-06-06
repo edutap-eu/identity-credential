@@ -27,9 +27,9 @@ import com.android.identity.securearea.KeyPurpose
 import com.android.identity.securearea.PassphraseConstraints
 import com.android.identity.securearea.toDataItem
 import com.android.identity.storage.StorageEngine
-import com.android.identity_credential.mrtd.MrtdAccessData
-import com.android.identity_credential.mrtd.MrtdNfcData
-import com.android.identity_credential.mrtd.MrtdNfcDataDecoder
+import com.android.identity.mrtd.MrtdAccessData
+import com.android.identity.mrtd.MrtdNfcData
+import com.android.identity.mrtd.MrtdNfcDataDecoder
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -37,7 +37,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
-import java.io.ByteArrayOutputStream
 import kotlin.time.Duration.Companion.days
 
 class SelfSignedMdlIssuingAuthority(
@@ -56,7 +55,7 @@ class SelfSignedMdlIssuingAuthority(
                 identifier = "mDL_Utopia",
                 issuingAuthorityName = resourceString(context, R.string.utopia_mdl_issuing_authority_name),
                 issuingAuthorityLogo = pngData(context, R.drawable.utopia_dmv_issuing_authority_logo),
-                description = resourceString(context, R.string.utopia_mdl_issuing_authority_description),
+                issuingAuthorityDescription = resourceString(context, R.string.utopia_mdl_issuing_authority_description),
                 pendingDocumentInformation = DocumentConfiguration(
                     displayName = resourceString(context, R.string.utopia_mdl_issuing_authority_pending_document_title),
                     typeDisplayName = "Personal Identification Document",
@@ -67,6 +66,10 @@ class SelfSignedMdlIssuingAuthority(
                 )
             )
         }
+    }
+
+    override suspend fun getConfiguration(): IssuingAuthorityConfiguration {
+        return getConfiguration(application.applicationContext)
     }
 
     override val docType: String = MDL_DOCTYPE
@@ -406,7 +409,7 @@ class SelfSignedMdlIssuingAuthority(
                 MrtdNfcData(icaoPassiveData.dataGroups, icaoPassiveData.securityObject)
             else
                 throw IllegalStateException("Should not happen")
-            val decoder = MrtdNfcDataDecoder(application.cacheDir)
+            val decoder = MrtdNfcDataDecoder()
             val decoded = decoder.decode(mrtdData)
             val firstName = decoded.firstName
             val lastName = decoded.lastName
@@ -427,8 +430,8 @@ class SelfSignedMdlIssuingAuthority(
             // over 18/21 is calculated purely based on calendar date (not based on the birth time zone)
             val ageOver18 = now > dateOfBirthInstant.plus(18, DateTimeUnit.YEAR, timeZone)
             val ageOver21 = now > dateOfBirthInstant.plus(21, DateTimeUnit.YEAR, timeZone)
-            val portrait = decoded.photo ?: bitmapData(R.drawable.img_erika_portrait)
-            val signatureOrUsualMark = decoded.signature ?: bitmapData(R.drawable.img_erika_signature)
+            val portrait = decoded.photo?.toByteArray() ?: bitmapData(R.drawable.img_erika_portrait)
+            val signatureOrUsualMark = decoded.signature?.toByteArray() ?: bitmapData(R.drawable.img_erika_signature)
 
             // Make sure we set at least all the mandatory data elements
             //

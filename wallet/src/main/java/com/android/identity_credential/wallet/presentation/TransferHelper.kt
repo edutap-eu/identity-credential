@@ -15,7 +15,6 @@ import com.android.identity.crypto.javaX509Certificates
 import com.android.identity.issuance.DocumentExtensions.documentConfiguration
 import com.android.identity.issuance.DocumentExtensions.issuingAuthorityIdentifier
 import com.android.identity.issuance.CredentialFormat
-import com.android.identity.issuance.IssuingAuthorityRepository
 import com.android.identity.mdoc.mso.MobileSecurityObjectParser
 import com.android.identity.mdoc.mso.StaticAuthDataParser
 import com.android.identity.mdoc.request.DeviceRequestParser
@@ -28,7 +27,6 @@ import com.android.identity.trustmanagement.TrustManager
 import com.android.identity.trustmanagement.TrustPoint
 import com.android.identity.util.Constants
 import com.android.identity.util.Logger
-import com.android.identity.util.Timestamp
 import com.android.identity_credential.wallet.R
 import com.android.identity_credential.wallet.SettingsModel
 import com.android.identity_credential.wallet.WalletApplication
@@ -36,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
+import kotlinx.datetime.Clock
 
 /**
  * Transfer Helper provides helper functions for starting to process a presentation request, as well
@@ -45,7 +44,6 @@ import kotlin.coroutines.resume
 class TransferHelper(
     private val settingsModel: SettingsModel,
     private val documentStore: DocumentStore,
-    private val issuingAuthorityRepository: IssuingAuthorityRepository,
     private val trustManager: TrustManager,
     private val context: Context,
     private val deviceRetrievalHelper: DeviceRetrievalHelper,
@@ -61,7 +59,6 @@ class TransferHelper(
     class Builder(
         val settingsModel: SettingsModel,
         val documentStore: DocumentStore,
-        val issuingAuthorityRepository: IssuingAuthorityRepository,
         val trustManager: TrustManager,
         val context: Context,
         private var deviceRetrievalHelper: DeviceRetrievalHelper? = null,
@@ -74,7 +71,6 @@ class TransferHelper(
         fun build() = TransferHelper(
             settingsModel = settingsModel,
             documentStore = documentStore,
-            issuingAuthorityRepository = issuingAuthorityRepository,
             trustManager = trustManager,
             context = context,
             deviceRetrievalHelper = deviceRetrievalHelper!!,
@@ -166,7 +162,7 @@ class TransferHelper(
         val document = documentStore.lookupDocument(credentialId)!!
         val encodedDeviceResponse: ByteArray
         val docConfiguration = document.documentConfiguration
-        val now = Timestamp.now()
+        val now = Clock.System.now()
         val credentialToUse: MdocCredential = credential
             ?: (document.findCredential(WalletApplication.CREDENTIAL_DOMAIN_MDOC, now)
                 ?: run {
@@ -309,9 +305,6 @@ class TransferHelper(
     ): Boolean {
         val credential = documentStore.lookupDocument(credentialId)!!
         val issuingAuthorityIdentifier = credential.issuingAuthorityIdentifier
-        val issuer =
-            issuingAuthorityRepository.lookupIssuingAuthority(issuingAuthorityIdentifier)
-                ?: throw IllegalArgumentException("No issuer with id $issuingAuthorityIdentifier")
         //if (!credentialFormats.contains(credentialFormat)) {
         //    return false;
         //}
